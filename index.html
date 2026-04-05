@@ -1,0 +1,905 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>kharcha - where did your money go?</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,700&family=DM+Mono:wght@400&display=swap');
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--bg:#FAFAF8;--card:#FFF;--text:#1a1a1a;--muted:#6b6b6b;--hint:#9b9b9b;--border:#e8e8e4;--accent:#E8593C;--accent-light:#FEF0ED}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;-webkit-font-smoothing:antialiased}
+.container{max-width:480px;margin:0 auto;padding:0 16px 60px}
+
+/* Trust strip */
+.trust-strip{background:#1a1a1a;color:rgba(255,255,255,.6);text-align:center;padding:7px 16px;font-size:10.5px;font-family:'DM Mono',monospace;letter-spacing:.2px}
+
+/* Header */
+.header{text-align:center;padding:22px 0 18px}
+.header h1{font-size:26px;font-weight:700;letter-spacing:-1px;color:var(--accent)}
+.header .sub{font-size:13px;color:var(--muted);margin-top:2px}
+
+/* Dropzone */
+.dropzone{border:2px dashed var(--border);border-radius:16px;padding:34px 20px;text-align:center;cursor:pointer;transition:all .2s;background:var(--card);margin-bottom:14px;position:relative}
+.dropzone:hover,.dropzone.drag{border-color:var(--accent);background:var(--accent-light)}
+.dropzone-icon{font-size:30px;margin-bottom:6px;opacity:.5}
+.dropzone-text{font-size:14px;color:var(--muted)}.dropzone-text strong{color:var(--text)}
+.dropzone input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer}
+
+/* Password */
+.pwd-section{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:14px;display:none}
+.pwd-section label{font-size:12px;color:var(--muted);display:block;margin-bottom:6px}
+.pwd-row{display:flex;gap:8px}
+.pwd-row input{flex:1;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;font-family:'DM Sans',sans-serif;outline:none}
+.pwd-row input:focus{border-color:var(--accent)}
+
+/* Buttons */
+.btn{padding:10px 18px;border:none;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .15s;-webkit-tap-highlight-color:transparent}
+.btn-primary{background:var(--accent);color:#fff}
+.btn-clear{background:#FEE;color:var(--accent);border:1px solid #FCC}
+.btn-remember{background:#E6F5EE;color:#0F6E56;border:1px solid #9FE1CB}
+.btn-share{background:#EFF6FF;color:#2563EB;border:1px solid #B5D4F4}
+
+/* Status */
+.status{text-align:center;padding:14px;font-size:13px;color:var(--muted);display:none;line-height:1.5}
+.status.error{color:var(--accent)}
+
+.results{display:none}
+
+/* ── Share card ── */
+.share-card{background:linear-gradient(145deg,#1a1a1a 0%,#2a2a2a 100%);border-radius:20px;padding:22px 18px 18px;margin-bottom:6px;position:relative;overflow:hidden}
+.share-card::before{content:'';position:absolute;top:-50px;right:-50px;width:120px;height:120px;background:var(--accent);opacity:.08;border-radius:50%;pointer-events:none}
+
+/* Card top row: left = title+total, right = month+eye */
+.share-card-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;gap:12px}
+.share-card-left{flex:1;min-width:0}
+.share-card-title{color:#fff;font-size:18px;font-weight:700;letter-spacing:-.5px}
+.share-total-label{color:rgba(255,255,255,.35);font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-top:2px;margin-bottom:2px}
+.share-total{color:#fff;font-size:30px;font-weight:700;letter-spacing:-1px}
+.share-card-right{display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0}
+.share-card-month{color:rgba(255,255,255,.4);font-size:11px;font-family:'DM Mono',monospace}
+
+/* Eye toggle - large touch target for mobile */
+.eye-toggle{background:rgba(255,255,255,.1);border:none;color:rgba(255,255,255,.5);font-size:14px;width:36px;height:36px;border-radius:9px;cursor:pointer;display:flex;align-items:center;justify-content:center;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+.eye-toggle:active{background:rgba(255,255,255,.25)}
+
+/* Category grid */
+.share-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.share-cat{background:rgba(255,255,255,.07);border-radius:10px;padding:10px;display:flex;align-items:center;gap:8px;cursor:pointer;transition:background .15s;-webkit-tap-highlight-color:transparent}
+.share-cat:active{background:rgba(255,255,255,.15)}
+.share-cat-icon{font-size:15px;width:26px;height:26px;border-radius:7px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.share-cat-info{min-width:0;flex:1}
+.share-cat-name{color:rgba(255,255,255,.6);font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.share-cat-amt{color:#fff;font-size:12.5px;font-weight:700}
+.share-cat-pct{color:rgba(255,255,255,.35);font-size:9.5px;margin-left:2px;font-weight:400}
+.share-cat.hero{grid-column:1/-1;background:rgba(232,89,60,.18);border:1px solid rgba(232,89,60,.25)}
+.share-cat.hero .share-cat-amt{color:#E8593C;font-size:14px}
+.share-cat.hero .share-cat-name{color:rgba(255,255,255,.75)}
+.share-cat-delta{font-size:9px;font-weight:500;margin-left:3px}
+.share-cat-delta.down{color:#1D9E75}.share-cat-delta.up{color:#E8593C}
+.share-cat-arrow{color:rgba(255,255,255,.2);font-size:10px;margin-left:auto;flex-shrink:0}
+.share-watermark{text-align:right;color:rgba(255,255,255,.15);font-size:9px;font-family:'DM Mono',monospace;margin-top:10px}
+
+/* Tap hint */
+.tap-hint{text-align:center;color:var(--hint);font-size:11px;margin:6px 0 10px}
+
+/* ── Drill-down drawer ── */
+.drill{background:var(--card);border:1px solid var(--border);border-radius:12px;margin-bottom:14px;overflow:hidden;display:none}
+.drill.open{display:block}
+.drill-header{padding:12px 14px;display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border)}
+.drill-header-icon{font-size:16px}
+.drill-header-name{font-size:14px;font-weight:500;flex:1}
+.drill-header-total{font-size:14px;font-weight:700;color:var(--accent)}
+.drill-close{background:none;border:none;font-size:18px;color:var(--hint);cursor:pointer;padding:4px 8px;-webkit-tap-highlight-color:transparent}
+.drill-list{max-height:300px;overflow-y:auto}
+.drill-item{display:flex;align-items:center;padding:8px 14px;border-bottom:1px solid var(--border);font-size:12px}
+.drill-item:last-child{border:none}
+.drill-item-name{color:var(--text);flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-right:8px;font-weight:500}
+.drill-item-amt{font-weight:500;white-space:nowrap;color:var(--muted)}
+.drill-item-date{font-size:10px;color:var(--hint);margin-left:10px;white-space:nowrap;font-family:'DM Mono',monospace}
+
+/* Actions */
+.actions{display:flex;gap:8px;justify-content:center;margin-top:10px;flex-wrap:wrap}
+
+/* Tips */
+.tips-toggle{background:none;border:none;color:var(--hint);font-size:12px;cursor:pointer;padding:10px 0 4px;font-family:'DM Sans',sans-serif;width:100%;text-align:center;-webkit-tap-highlight-color:transparent}
+.tips-toggle:hover{color:var(--muted)}
+.tips-section{display:none;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px;margin-top:8px}
+.tips-section.open{display:block}
+.tips-cat{margin-bottom:8px}.tips-cat:last-child{margin-bottom:0}
+.tips-cat-name{font-size:12px;font-weight:500;color:var(--text);margin-bottom:1px}
+.tips-cat-list{font-size:11px;color:var(--hint);line-height:1.5}
+
+/* Category icon backgrounds */
+.si-food{background:rgba(232,89,60,.25)}.si-qcomm{background:rgba(29,158,117,.25)}
+.si-ecomm{background:rgba(37,99,235,.25)}.si-transport{background:rgba(127,119,221,.25)}
+.si-cabs{background:rgba(186,117,23,.25)}.si-subs{background:rgba(212,83,126,.25)}
+.si-fuel{background:rgba(95,94,90,.25)}.si-telecom{background:rgba(15,110,86,.25)}
+.si-health{background:rgba(153,60,29,.25)}.si-shopping{background:rgba(24,95,165,.25)}
+.si-grocery{background:rgba(99,153,34,.25)}.si-education{background:rgba(83,74,183,.25)}
+.si-entertain{background:rgba(114,36,62,.25)}.si-insurance{background:rgba(8,80,65,.25)}
+.si-cash{background:rgba(133,79,11,.25)}
+</style>
+</head>
+<body>
+
+<div class="trust-strip">no server involved · no internet needed · works on airplane mode · open source</div>
+
+<div class="container">
+  <div class="header">
+    <h1>kharcha</h1>
+    <p class="sub">drop your bank statement. see where your money went.</p>
+  </div>
+
+  <div class="dropzone" id="dropzone">
+    <div class="dropzone-icon">📄</div>
+    <div class="dropzone-text"><strong>drop statement PDF here</strong><br>or tap to select</div>
+    <input type="file" id="fileInput" accept=".pdf">
+  </div>
+
+  <div class="pwd-section" id="pwdSection">
+    <label>password (usually DOB as DDMMYYYY or PAN)</label>
+    <div class="pwd-row">
+      <input type="password" id="pwdInput" placeholder="enter password">
+      <button class="btn btn-primary" id="unlockBtn">unlock</button>
+    </div>
+  </div>
+
+  <div class="status" id="status"></div>
+
+  <div class="results" id="results">
+    <div class="share-card" id="shareCard">
+      <div class="share-card-top">
+        <div class="share-card-left">
+          <div class="share-card-title">my kharcha</div>
+          <div class="share-total-label">discretionary spending</div>
+          <div class="share-total" id="shareTotal">₹0</div>
+        </div>
+        <div class="share-card-right">
+          <div class="share-card-month" id="cardMonth"></div>
+          <button class="eye-toggle" id="eyeToggle">👁</button>
+        </div>
+      </div>
+      <div class="share-grid" id="shareGrid"></div>
+      <div class="share-watermark">kharcha.app</div>
+    </div>
+
+    <div class="tap-hint">tap any category to see details</div>
+
+    <div class="drill" id="drill">
+      <div class="drill-header">
+        <span class="drill-header-icon" id="drillIcon"></span>
+        <span class="drill-header-name" id="drillName"></span>
+        <span class="drill-header-total" id="drillTotal"></span>
+        <button class="drill-close" id="drillClose">✕</button>
+      </div>
+      <div class="drill-list" id="drillList"></div>
+    </div>
+
+    <div class="actions">
+      <button class="btn btn-share" id="shareBtn">📤 share card</button>
+      <button class="btn btn-remember" id="rememberBtn">📌 remember this month</button>
+      <button class="btn btn-clear" id="clearBtn">clear everything</button>
+    </div>
+
+    <button class="tips-toggle" id="tipsToggle">what's included in each category? ▾</button>
+    <div class="tips-section" id="tipsSection"></div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+<script type="module">
+import * as pdfjsLib from 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/pdf.min.mjs';
+
+// Only use CDN worker on https (GitHub Pages). On file:// use built-in fallback.
+if (window.location.protocol === 'https:') {
+  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/pdf.worker.min.mjs';
+}
+
+// ═══════════════════════════════════════════════════════
+// MERCHANT DICTIONARY
+// Keywords sorted by length at categorization time (longer first)
+// to prevent "AMAZON" matching before "AMAZON FRESH"
+// ═══════════════════════════════════════════════════════
+
+const CATEGORIES = {
+  'Food delivery': {
+    css: 'food', icon: '🍕',
+    kw: ['SWIGGY','ZOMATO','EATSURE','BOX8','DUNZO FOOD','MAGICPIN','DOMINO','MCDONALDS','KFC','PIZZA HUT','PIZZAHUT','BURGER KING','BURGERKING','SUBWAY','TACO BELL','HALDIRAM','FAASOS','BEHROUZ','BIRYANI BY KILO','LICIOUS','FRESHMENU','MOJO PIZZA','OVENSTORY','CHAAYOS','STARBUCKS','CCD','CAFE COFFEE','BARISTA','BLUE TOKAI','THIRD WAVE','EATCLUB','REBEL FOODS','WOW MOMO','BASKIN ROBBINS','POPEYES','CHICKING'],
+    tips: 'Swiggy, Zomato, Dominos, McDonalds, KFC, Pizza Hut, Burger King, Subway, Starbucks, CCD, Barista, Blue Tokai, Haldirams, EatSure, Faasos, Chaayos, Licious, Wow Momo, Baskin Robbins'
+  },
+  'Quick commerce': {
+    css: 'qcomm', icon: '⚡',
+    kw: ['BLINKIT','ZEPTO','ZEPTONOW','BIGBASKET','BIG BASKET','BB DAILY','BBDAILY','INSTAMART','SWIGGY INSTA','JIOMART','JIO MART','DUNZO DAILY','AMAZON FRESH','FLIPKART MINUTES','BBNOW','BB NOW','DMART READY','MILKBASKET','COUNTRY DELIGHT','SUPR DAILY','GROFERS','FRESHTOHOME','FRESH TO HOME','SLIKK'],
+    tips: 'Blinkit, Zepto, BigBasket, BBDaily, Swiggy Instamart, JioMart, Amazon Fresh, Flipkart Minutes, DMart Ready, Milkbasket, Country Delight, FreshToHome'
+  },
+  'E-commerce': {
+    css: 'ecomm', icon: '📦',
+    kw: ['AMAZON','FLIPKART','MYNTRA','AJIO','MEESHO','SNAPDEAL','TATACLIQ','TATA CLIQ','TATA NEU','FIRSTCRY','NYKAA','PURPLLE','PEPPERFRY','URBANLADDER','URBAN LADDER','BEWAKOOF','SOULED STORE','CROMA','CHROMA','RELIANCE DIGITAL','VIJAY SALES','BOAT LIFESTYLE','LIMEROAD','CLOVIA','MAMAEARTH','SUGAR COSMETIC','HEALTHKART','BEARDO'],
+    tips: 'Amazon, Flipkart, Myntra, Ajio, Meesho, Snapdeal, Tata CLiQ, Tata Neu, FirstCry, Nykaa, Purplle, Croma, Reliance Digital, Vijay Sales, Pepperfry, Mamaearth'
+  },
+  'Travel': {
+    css: 'transport', icon: '✈️',
+    kw: ['IRCTC','MAKEMYTRIP','GOIBIBO','YATRA','EASEMYTRIP','CLEARTRIP','IXIGO','REDBUS','ABHIBUS','CONFIRMTKT','RAILYATRI','INDIGO','AIRINDIA','AIR INDIA','SPICEJET','VISTARA','AKASA','AIR ASIA','AIRASIA','GO FIRST','BOOKING.COM','AGODA','OYO','FABHOTEL','TREEBO','ZOSTEL','TAJ HOTEL','ITC HOTEL','MARRIOTT','HYATT','OBEROI','LEMON TREE','RADISSON','NOVOTEL','HILTON','HOLIDAY INN'],
+    tips: 'IRCTC, MakeMyTrip, Goibibo, Yatra, EaseMyTrip, Cleartrip, Ixigo, RedBus, IndiGo, Air India, SpiceJet, Vistara, Akasa, OYO, Booking.com, Marriott, Taj, Oberoi, Hyatt'
+  },
+  'Cabs & rides': {
+    css: 'cabs', icon: '🚗',
+    kw: ['UBER','OLACAB','OLA CAB','OLA MONEY','OLA RIDE','RAPIDO','NAMMA YATRI','NAMMAYATRI','BLUSMART','BLU SMART','MERU','INDRIVE'],
+    tips: 'Uber, Ola, Rapido, Namma Yatri, BluSmart, Meru, InDrive'
+  },
+  'Subscriptions': {
+    css: 'subs', icon: '📺',
+    kw: ['NETFLIX','SPOTIFY','HOTSTAR','DISNEY PLUS','YOUTUBE PREM','AMAZON PRIME','PRIME VIDEO','APPLE.COM','APPLE COM','APPLE MEDIA','JIOCINEMA','SONYLIV','SONY LIV','ZEE5','AUDIBLE','KINDLE','NOTION','CANVA','CHATGPT','OPENAI','ANTHROPIC','CLAUDE','MIDJOURNEY','LINKEDIN PREM','GITHUB','DROPBOX','ICLOUD','GOOGLE ONE','GOOGLE STORAGE','MICROSOFT 365','ADOBE','FIGMA','SLACK','ZOOM','GAANA','WYNK'],
+    tips: 'Netflix, Spotify, Hotstar, Disney+, YouTube Premium, Amazon Prime, JioCinema, ZEE5, Apple, Adobe, ChatGPT, Notion, Canva, LinkedIn Premium, iCloud, Google One, Zoom'
+  },
+  'Fuel': {
+    css: 'fuel', icon: '⛽',
+    kw: ['BPCL','HPCL','IOCL','INDIAN OIL','BHARAT PETRO','HINDUSTAN PETRO','SHELL','RELIANCE PETRO','NAYARA','HP PETROL','PETROL PUMP','FUEL STN','ATHER','CHARGE ZONE','STATIQ','TATA POWER EV'],
+    tips: 'BPCL, HPCL, Indian Oil, Shell, Nayara, Ather, ChargeZone, Statiq, any petrol pump'
+  },
+  'Telecom': {
+    css: 'telecom', icon: '📱',
+    kw: ['AIRTEL','VODAFONE','IDEA CELL','BSNL','MTNL','TATA PLAY','DISH TV','DISHTV','D2H','ELECTRICITY','BESCOM','TATA POWER','ADANI ELEC','MSEDCL','TORRENT POWER','MAHANAGAR GAS','IGL','PIPED GAS','WATER BILL','MUNICIPAL','BROADBAND','ACT FIBERNET','EXCITEL','HATHWAY','JIO FIBER','JIOFIBER'],
+    tips: 'Airtel, Vodafone/Vi, BSNL, Tata Play, DishTV, Jio Fiber, electricity, gas, water bills, broadband'
+  },
+  'Health': {
+    css: 'health', icon: '💊',
+    kw: ['PHARMEASY','1MG','TATA 1MG','NETMEDS','APOLLO PHARM','MEDPLUS','PRACTO','CULT.FIT','CULTFIT','CURE.FIT','CUREFIT','HEALTHIFY','LENSKART','TITAN EYE','HOSPITAL','CLINIC','DIAGNOSTIC','THYROCARE','METROPOLIS','DR LAL','LALPATH','SRL DIAG','NARAYANA','FORTIS','MAX HEALTH','MANIPAL','APOLLO HOSP','MEDANTA'],
+    tips: 'PharmEasy, 1mg, Netmeds, Apollo, Practo, Cult.fit, Lenskart, Thyrocare, Metropolis, Dr Lal, Fortis, Max, Narayana, Medanta'
+  },
+  'Shopping': {
+    css: 'shopping', icon: '🛍️',
+    kw: ['ZARA','H&M','WESTSIDE','LIFESTYLE INT','SHOPPERS STOP','PANTALOONS','MAX FASHION','DECATHLON','IKEA','HOMECENTRE','HOME CENTRE','TANISHQ','KALYAN','MALABAR GOLD','TITAN','FABINDIA','RAYMOND','PETER ENGLAND','VAN HEUSEN','ALLEN SOLLY','BATA','METRO SHOES','WOODLAND','SKECHERS','NIKE','ADIDAS','PUMA','MARKS SPENCER','UNIQLO','LEVIS','WRANGLER','PEPE JEANS'],
+    tips: 'Zara, H&M, Uniqlo, Westside, Shoppers Stop, Pantaloons, Decathlon, IKEA, Tanishq, Kalyan, Malabar Gold, Nike, Adidas, Puma, Bata, FabIndia, Levis'
+  },
+  'Grocery': {
+    css: 'grocery', icon: '🛒',
+    kw: ['DMART','D MART','D-MART','RELIANCE FRESH','RELIANCE SMART','SMART BAZAAR','STAR BAZAAR','SPENCER','MORE RETAIL','MORE SUPER','RATNADEEP','NATURE BASKET','SPAR ','HYPERCITY','METRO CASH','SUPERMARKET','EASY DAY'],
+    tips: 'DMart, Reliance Fresh/Smart, Smart Bazaar, Star Bazaar, Spencer, Nature Basket, Spar, More, Easy Day'
+  },
+  'Education': {
+    css: 'education', icon: '📚',
+    kw: ['BYJU','UNACADEMY','COURSERA','UDEMY','UPGRAD','SIMPLILEARN','EDUREKA','GREAT LEARNING','SCALER','CODING NINJA','VEDANTU','PHYSICS WALLAH','SCHOOL FEE','TUITION','COACHING','TOPPR','DOUBTNUT','TESTBOOK'],
+    tips: 'Byjus, Unacademy, Coursera, Udemy, upGrad, Scaler, Physics Wallah, Vedantu, school fees, tuition'
+  },
+  'Entertainment': {
+    css: 'entertain', icon: '🎬',
+    kw: ['BOOKMYSHOW','BOOK MY SHOW','PVR','INOX','CINEPOLIS','CARNIVAL CINEMA','SMAAASH','TIMEZONE','FUNCITY','WONDERLA','ESSEL WORLD','IMAGICA'],
+    tips: 'BookMyShow, PVR, INOX, Cinepolis, Wonderla, Imagica, Essel World'
+  },
+  'Insurance': {
+    css: 'insurance', icon: '🛡️',
+    kw: ['LIC ','ICICI PRU','HDFC LIFE','SBI LIFE','MAX LIFE','BAJAJ ALLIANZ','STAR HEALTH','CARE HEALTH','DIGIT INS','ACKO','POLICY BAZAAR','POLICYBAZAAR','MUTUAL FUND','ZERODHA','GROWW','KUVERA','UPSTOX','ANGEL','5PAISA','SMALLCASE'],
+    tips: 'LIC, HDFC Life, ICICI Pru, Star Health, Acko, PolicyBazaar, Zerodha, Groww, Kuvera, Upstox, Smallcase, mutual funds'
+  },
+  'Cash withdrawal': {
+    css: 'cash', icon: '🏧',
+    kw: ['ATM','CASH WDL','CASH WITHDR','CASHWITHDRA','ATM WDL','ATM-WDL','NFS WDL','SELF WDL','CASH WITHDRAWAL'],
+    tips: 'Any ATM withdrawal'
+  }
+};
+
+const SKIP_CATS = new Set(['Other', 'Transfers']);
+
+// ═══════════════════════════════════════════════════════
+// KEYWORD INDEX - sorted longest first
+// "AMAZON FRESH" matches before "AMAZON"
+// "SWIGGY INSTA" matches before "SWIGGY"
+// ═══════════════════════════════════════════════════════
+
+const KEYWORD_INDEX = [];
+for (const [cat, info] of Object.entries(CATEGORIES)) {
+  for (const kw of info.kw) {
+    KEYWORD_INDEX.push({ kw: kw.toUpperCase(), cat, display: titleCase(kw.trim()) });
+  }
+}
+KEYWORD_INDEX.sort((a, b) => b.kw.length - a.kw.length);
+
+function categorize(narration) {
+  for (const entry of KEYWORD_INDEX) {
+    if (narration.includes(entry.kw)) {
+      return { cat: entry.cat, merchant: entry.display };
+    }
+  }
+  return { cat: 'Other', merchant: 'Other' };
+}
+
+function titleCase(s) {
+  return s.trim().toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
+}
+
+// ═══════════════════════════════════════════════════════
+// PDF TEXT EXTRACTION
+// ═══════════════════════════════════════════════════════
+
+async function extractRows(pdf) {
+  const allRows = [];
+  for (let p = 1; p <= pdf.numPages; p++) {
+    const page = await pdf.getPage(p);
+    const content = await page.getTextContent();
+    if (!content.items.length) continue;
+
+    // Group text items by Y position (same row = within 4 units)
+    const buckets = {};
+    for (const item of content.items) {
+      const text = item.str;
+      if (!text || !text.trim()) continue;
+      const y = Math.round(item.transform[5]);
+      const x = Math.round(item.transform[4]);
+      let bk = null;
+      for (const k of Object.keys(buckets)) {
+        if (Math.abs(parseInt(k) - y) <= 4) { bk = k; break; }
+      }
+      if (!bk) bk = y.toString();
+      if (!buckets[bk]) buckets[bk] = [];
+      buckets[bk].push({ text, x });
+    }
+
+    // Sort rows top-to-bottom (PDF Y is bottom-up)
+    const sortedYs = Object.keys(buckets).map(Number).sort((a, b) => b - a);
+    for (const k of sortedYs) {
+      const items = buckets[k].sort((a, b) => a.x - b.x);
+      allRows.push(items.map(i => i.text.trim()).filter(Boolean).join('  '));
+    }
+  }
+  return allRows;
+}
+
+async function hasText(pdf) {
+  let chars = 0;
+  for (let p = 1; p <= Math.min(pdf.numPages, 3); p++) {
+    const page = await pdf.getPage(p);
+    const content = await page.getTextContent();
+    for (const item of content.items) chars += item.str.trim().length;
+  }
+  return chars > 50;
+}
+
+// ═══════════════════════════════════════════════════════
+// TRANSACTION PARSER
+// ═══════════════════════════════════════════════════════
+
+function parseAllTransactions(rows) {
+  const txns = [];
+  const datePatterns = [
+    /\b(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4})\b/,
+    /\b(\d{1,2}\s+(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\w*\s+\d{2,4})\b/i,
+    /\b(\d{1,2}(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\w*\d{2,4})\b/i
+  ];
+  const creditRe = /\b(CR\b|CREDIT|CREDITED|SALARY|RECEIVED|REFUND|CASHBACK|REVERSAL|BY TRANSFER|INTEREST CREDIT|INT\.PAID|DIVIDEND)/i;
+  const skipRe = /\b(OPENING BALANCE|CLOSING BALANCE|STATEMENT SUMMARY|PAGE \d|GRAND TOTAL|ACCOUNT NUMBER|CUSTOMER ID|BRANCH|IFSC|CIF NO|NOMINEE|EMAIL ID|PARTICULARS|NARRATION|DESCRIPTION|WITHDRAWAL|DEPOSIT\b|BALANCE\b|CHEQUE NO|DATE\s+DATE)\b/i;
+
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i];
+    if (!row || row.length < 10) continue;
+
+    // Skip header/footer rows
+    const words = row.split(/\s+/);
+    const skipWords = words.filter(w => skipRe.test(w));
+    if (skipWords.length > words.length * 0.4 && words.length < 8) continue;
+
+    // Must have a date
+    let hasDate = false;
+    let dateStr = '';
+    for (const re of datePatterns) {
+      const dm = row.match(re);
+      if (dm) { hasDate = true; dateStr = dm[1] || dm[0]; break; }
+    }
+    if (!hasDate) continue;
+
+    // Extract amounts (prefer decimal format, fallback to comma-separated integers)
+    const amounts = [];
+    let m;
+    const amtRe = /(\d{1,3}(?:,\d{2,3})*\.\d{2})\b/g;
+    while ((m = amtRe.exec(row)) !== null) {
+      const val = parseFloat(m[1].replace(/,/g, ''));
+      if (val > 0 && val < 50000000) amounts.push({ val, idx: m.index });
+    }
+    if (amounts.length === 0) {
+      const intRe = /\b(\d{1,3}(?:,\d{2,3})+)\b/g;
+      while ((m = intRe.exec(row)) !== null) {
+        const val = parseFloat(m[1].replace(/,/g, ''));
+        if (val >= 10 && val < 50000000) amounts.push({ val, idx: m.index });
+      }
+    }
+    if (amounts.length === 0) continue;
+
+    // Look ahead for continuation lines (multi-line narrations)
+    let fullRow = row;
+    let la = 1;
+    while (la <= 2 && (i + la) < rows.length) {
+      const nr = rows[i + la];
+      if (!nr) break;
+      let nd = false;
+      for (const re of datePatterns) { if (re.test(nr)) { nd = true; break; } }
+      const na = nr.match(/\d{1,3}(?:,\d{2,3})*\.\d{2}/g);
+      if (!nd && !na && nr.length < 80 && nr.length > 2) {
+        fullRow += ' ' + nr;
+        la++;
+      } else break;
+    }
+
+    const narration = fullRow.toUpperCase();
+    const isCredit = creditRe.test(narration);
+
+    // Determine transaction amount
+    // Last amount is usually the running balance (largest, rightmost)
+    let amount = 0;
+    if (amounts.length === 1) {
+      amount = amounts[0].val;
+    } else {
+      const sorted = [...amounts].sort((a, b) => a.idx - b.idx);
+      const lastVal = sorted[sorted.length - 1].val;
+      // Pick the first amount that isn't the balance
+      for (const a of sorted) {
+        if (a.val !== lastVal || sorted.length <= 2) { amount = a.val; break; }
+      }
+      if (amount === 0) amount = sorted[0].val;
+      // If we accidentally picked the balance (much larger than the other)
+      if (amounts.length === 2 && amount > amounts[1].val * 3) {
+        amount = Math.min(amounts[0].val, amounts[1].val);
+      }
+    }
+    if (amount < 1 || amount > 5000000) continue;
+
+    // Categorize using keyword index (longest match first)
+    // The merchant name IS the matched keyword - no messy narration parsing
+    const { cat: category, merchant } = categorize(narration);
+
+    txns.push({ narration, amount, category, merchant, isCredit, date: dateStr });
+  }
+  return txns;
+}
+
+// ═══════════════════════════════════════════════════════
+// ANALYSIS
+// ═══════════════════════════════════════════════════════
+
+function analyze(txns) {
+  // Filter: only debits, only known categories
+  const debits = txns.filter(t => !t.isCredit && !SKIP_CATS.has(t.category));
+
+  const byCat = {};
+  for (const t of debits) {
+    if (!byCat[t.category]) byCat[t.category] = { total: 0, count: 0, items: [] };
+    byCat[t.category].total += t.amount;
+    byCat[t.category].count++;
+    byCat[t.category].items.push({
+      merchant: t.merchant,
+      amount: t.amount,
+      date: t.date
+    });
+  }
+
+  const sorted = Object.entries(byCat)
+    .map(([name, data]) => ({ name, ...data }))
+    .sort((a, b) => b.total - a.total);
+
+  const grandTotal = sorted.reduce((s, c) => s + c.total, 0);
+
+  // Extract statement date range from ALL transactions (including credits/other)
+  const allDates = txns.map(t => t.date).filter(Boolean);
+  const monthStr = getMonthRange(allDates);
+
+  return { categories: sorted, grandTotal, txnCount: debits.length, monthStr };
+}
+
+// Parse date strings to extract month range like "feb 2026" or "jan-mar 2026"
+function getMonthRange(dateStrings) {
+  const months = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
+  const parsed = [];
+
+  for (const ds of dateStrings) {
+    let d = null;
+    // DD/MM/YYYY or DD-MM-YYYY or DD.MM.YYYY
+    let m = ds.match(/(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{2,4})/);
+    if (m) {
+      let year = parseInt(m[3]);
+      if (year < 100) year += 2000;
+      d = { month: parseInt(m[2]) - 1, year };
+    }
+    // DD Mon YYYY
+    if (!d) {
+      m = ds.match(/(\d{1,2})\s*(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\w*\s*(\d{2,4})/i);
+      if (m) {
+        let year = parseInt(m[3]);
+        if (year < 100) year += 2000;
+        const mi = months.indexOf(m[2].toLowerCase().substring(0, 3));
+        if (mi >= 0) d = { month: mi, year };
+      }
+    }
+    if (d && d.month >= 0 && d.month <= 11 && d.year >= 2000) parsed.push(d);
+  }
+
+  if (parsed.length === 0) {
+    const now = new Date();
+    return months[now.getMonth()] + ' ' + now.getFullYear();
+  }
+
+  const minMonth = parsed.reduce((a, b) => (a.year < b.year || (a.year === b.year && a.month < b.month)) ? a : b);
+  const maxMonth = parsed.reduce((a, b) => (a.year > b.year || (a.year === b.year && a.month > b.month)) ? a : b);
+
+  if (minMonth.month === maxMonth.month && minMonth.year === maxMonth.year) {
+    return months[minMonth.month] + ' ' + minMonth.year;
+  }
+  if (minMonth.year === maxMonth.year) {
+    return months[minMonth.month] + '-' + months[maxMonth.month] + ' ' + minMonth.year;
+  }
+  return months[minMonth.month] + ' ' + minMonth.year + ' - ' + months[maxMonth.month] + ' ' + maxMonth.year;
+}
+
+// ═══════════════════════════════════════════════════════
+// RENDERING
+// ═══════════════════════════════════════════════════════
+
+let amountsVisible = true;
+let currentResult = null;
+
+function render(result) {
+  currentResult = result;
+  document.getElementById('cardMonth').textContent = result.monthStr;
+  updateCard();
+  buildTips(result);
+  document.getElementById('drill').classList.remove('open');
+  document.getElementById('results').style.display = 'block';
+  document.getElementById('shareCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function updateCard() {
+  if (!currentResult) return;
+  const r = currentResult;
+  const total = r.grandTotal;
+
+  // Total
+  document.getElementById('shareTotal').textContent = amountsVisible ? '₹' + fmtNum(total) : '₹••••••';
+
+  // Load previous month for comparison
+  let prevData = null;
+  try { const s = localStorage.getItem('kharcha_last'); if (s) prevData = JSON.parse(s); } catch (e) {}
+
+  // Build category grid
+  const grid = document.getElementById('shareGrid');
+  grid.innerHTML = '';
+  const cats = r.categories.slice(0, 8);
+
+  cats.forEach((cat, idx) => {
+    const pct = ((cat.total / total) * 100).toFixed(0);
+    const ci = CATEGORIES[cat.name] || { css: 'other', icon: '📌' };
+    const isHero = idx === 0;
+
+    const div = document.createElement('div');
+    div.className = 'share-cat' + (isHero ? ' hero' : '');
+
+    // Delta from previous month
+    let deltaHtml = '';
+    if (prevData && prevData.cats && prevData.cats[cat.name]) {
+      const prev = prevData.cats[cat.name];
+      const change = ((cat.total - prev) / prev * 100).toFixed(0);
+      if (change > 0) deltaHtml = '<span class="share-cat-delta up">↑' + change + '%</span>';
+      else if (change < 0) deltaHtml = '<span class="share-cat-delta down">↓' + Math.abs(change) + '%</span>';
+    }
+
+    const amtText = amountsVisible ? '₹' + fmtNum(cat.total) : pct + '%';
+
+    div.innerHTML = '<div class="share-cat-icon si-' + ci.css + '">' + ci.icon + '</div>' +
+      '<div class="share-cat-info"><div class="share-cat-name">' + cat.name + '</div>' +
+      '<div class="share-cat-amt">' + amtText + '<span class="share-cat-pct"> ' + pct + '%</span>' + deltaHtml + '</div></div>' +
+      '<span class="share-cat-arrow">▸</span>';
+
+    div.addEventListener('click', function () { showDrill(cat.name); });
+    grid.appendChild(div);
+  });
+}
+
+function showDrill(catName) {
+  if (!currentResult) return;
+  const cat = currentResult.categories.find(c => c.name === catName);
+  if (!cat) return;
+  const ci = CATEGORIES[catName] || { icon: '📌' };
+
+  document.getElementById('drillIcon').textContent = ci.icon;
+  document.getElementById('drillName').textContent = catName;
+  document.getElementById('drillTotal').textContent = amountsVisible ? '₹' + fmtNum(cat.total) : '₹••••';
+
+  const list = document.getElementById('drillList');
+  list.innerHTML = '';
+
+  // Sort by amount descending
+  const sorted = [...cat.items].sort((a, b) => b.amount - a.amount);
+  for (const item of sorted) {
+    const div = document.createElement('div');
+    div.className = 'drill-item';
+    const amtText = amountsVisible ? '₹' + fmtNum(item.amount) : '₹••';
+    div.innerHTML = '<span class="drill-item-name">' + item.merchant + '</span>' +
+      '<span class="drill-item-amt">' + amtText + '</span>' +
+      '<span class="drill-item-date">' + (item.date || '') + '</span>';
+    list.appendChild(div);
+  }
+
+  const drill = document.getElementById('drill');
+  drill.classList.add('open');
+  drill.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function buildTips(result) {
+  const sec = document.getElementById('tipsSection');
+  sec.innerHTML = '';
+  for (const cat of result.categories) {
+    const ci = CATEGORIES[cat.name];
+    if (!ci || !ci.tips) continue;
+    const div = document.createElement('div');
+    div.className = 'tips-cat';
+    div.innerHTML = '<div class="tips-cat-name">' + ci.icon + ' ' + cat.name + '</div><div class="tips-cat-list">' + ci.tips + '</div>';
+    sec.appendChild(div);
+  }
+}
+
+// Indian number format: 1,23,456
+function fmtNum(n) {
+  const s = Math.round(n).toString();
+  if (s.length <= 3) return s;
+  let r = s.slice(-3);
+  let rest = s.slice(0, -3);
+  while (rest.length > 2) { r = rest.slice(-2) + ',' + r; rest = rest.slice(0, -2); }
+  if (rest.length > 0) r = rest + ',' + r;
+  return r;
+}
+
+// ═══════════════════════════════════════════════════════
+// PDF HANDLING
+// ═══════════════════════════════════════════════════════
+
+let currentFile = null;
+const dropzone = document.getElementById('dropzone');
+const fileInput = document.getElementById('fileInput');
+const pwdSection = document.getElementById('pwdSection');
+const pwdInput = document.getElementById('pwdInput');
+const unlockBtn = document.getElementById('unlockBtn');
+const statusEl = document.getElementById('status');
+const resultsEl = document.getElementById('results');
+
+dropzone.addEventListener('dragover', function (e) { e.preventDefault(); dropzone.classList.add('drag'); });
+dropzone.addEventListener('dragleave', function () { dropzone.classList.remove('drag'); });
+dropzone.addEventListener('drop', function (e) {
+  e.preventDefault(); dropzone.classList.remove('drag');
+  if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
+});
+fileInput.addEventListener('change', function (e) {
+  if (e.target.files.length) handleFile(e.target.files[0]);
+});
+
+async function handleFile(file) {
+  if (!file.name.toLowerCase().endsWith('.pdf')) { showStatus('please select a PDF file', true); return; }
+  currentFile = new Uint8Array(await file.arrayBuffer());
+  showStatus('reading...');
+  try {
+    const pdf = await pdfjsLib.getDocument({ data: currentFile.slice() }).promise;
+    await processPDF(pdf);
+  } catch (err) {
+    if (err.name === 'PasswordException') {
+      pwdSection.style.display = 'block';
+      showStatus('password protected');
+      pwdInput.focus();
+    } else {
+      showStatus('could not read this PDF: ' + err.message, true);
+    }
+  }
+}
+
+unlockBtn.addEventListener('click', async function () {
+  const pwd = pwdInput.value.trim();
+  if (!pwd) return;
+  showStatus('unlocking...');
+  try {
+    const pdf = await pdfjsLib.getDocument({ data: currentFile.slice(), password: pwd }).promise;
+    pwdSection.style.display = 'none';
+    await processPDF(pdf);
+  } catch (err) {
+    if (err.name === 'PasswordException') showStatus('wrong password - try DOB (DDMMYYYY) or PAN', true);
+    else showStatus('could not read: ' + err.message, true);
+  }
+});
+
+pwdInput.addEventListener('keydown', function (e) { if (e.key === 'Enter') unlockBtn.click(); });
+
+async function processPDF(pdf) {
+  showStatus('analyzing spending...');
+
+  // Check if PDF has extractable text
+  const textFound = await hasText(pdf);
+  if (!textFound) {
+    showStatus('this PDF has no readable text - it may be a scanned image or the text was removed. try the original password-protected version from your bank.', true);
+    return;
+  }
+
+  // Strategy 1: position-aware row extraction
+  const rows = await extractRows(pdf);
+  let txns = parseAllTransactions(rows);
+
+  // Strategy 2: Y-gap based newlines
+  if (txns.length < 3) {
+    let ft = '';
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const page = await pdf.getPage(i);
+      const content = await page.getTextContent();
+      let lastY = null;
+      for (const item of content.items) {
+        const y = Math.round(item.transform[5]);
+        if (lastY !== null && Math.abs(y - lastY) > 4) ft += '\n';
+        else if (lastY !== null) ft += '  ';
+        ft += item.str;
+        lastY = y;
+      }
+      ft += '\n';
+    }
+    const t2 = parseAllTransactions(ft.split('\n').filter(r => r.trim()));
+    if (t2.length > txns.length) txns = t2;
+  }
+
+  // Strategy 3: date-split fallback
+  if (txns.length < 3) {
+    let ft = '';
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const page = await pdf.getPage(i);
+      const content = await page.getTextContent();
+      ft += content.items.map(item => item.str).join(' ') + '\n';
+    }
+    const splits = ft.split(/(?=\b\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4}\b)|(?=\b\d{1,2}\s+(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec))/i).filter(r => r.trim());
+    const t3 = parseAllTransactions(splits);
+    if (t3.length > txns.length) txns = t3;
+  }
+
+  if (txns.length === 0) {
+    showStatus('could not detect transactions in this PDF. supported: HDFC, ICICI, SBI, Kotak, Axis and most Indian bank statements.', true);
+    return;
+  }
+
+  const result = analyze(txns);
+  if (result.grandTotal === 0) {
+    showStatus('transactions found but none matched known spending categories.', true);
+    return;
+  }
+
+  statusEl.style.display = 'none';
+  render(result);
+}
+
+// ═══════════════════════════════════════════════════════
+// EYE TOGGLE
+// ═══════════════════════════════════════════════════════
+
+document.getElementById('eyeToggle').addEventListener('click', function (e) {
+  e.stopPropagation();
+  e.preventDefault();
+  amountsVisible = !amountsVisible;
+  this.textContent = amountsVisible ? '👁' : '🔒';
+  updateCard();
+  // Also update drill if open
+  const drill = document.getElementById('drill');
+  if (drill.classList.contains('open')) {
+    const name = document.getElementById('drillName').textContent;
+    showDrill(name);
+  }
+});
+
+// ═══════════════════════════════════════════════════════
+// SHARE AS IMAGE
+// ═══════════════════════════════════════════════════════
+
+document.getElementById('shareBtn').addEventListener('click', async function () {
+  const card = document.getElementById('shareCard');
+  const btn = this;
+  btn.textContent = 'generating...';
+  btn.disabled = true;
+
+  try {
+    const canvas = await html2canvas(card, {
+      backgroundColor: '#1a1a1a',
+      scale: 2,
+      useCORS: true,
+      logging: false
+    });
+
+    canvas.toBlob(async function (blob) {
+      // Try native share (mobile)
+      if (navigator.share && navigator.canShare) {
+        try {
+          const file = new File([blob], 'my-kharcha.png', { type: 'image/png' });
+          if (navigator.canShare({ files: [file] })) {
+            await navigator.share({ files: [file], title: 'my kharcha' });
+            btn.textContent = '📤 share card';
+            btn.disabled = false;
+            return;
+          }
+        } catch (shareErr) { /* user cancelled or not supported, fall through to download */ }
+      }
+
+      // Fallback: download
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'my-kharcha.png';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      btn.textContent = '✓ saved';
+      btn.disabled = false;
+      setTimeout(function () { btn.textContent = '📤 share card'; }, 2000);
+    }, 'image/png');
+  } catch (e) {
+    btn.textContent = '📤 share card';
+    btn.disabled = false;
+  }
+});
+
+// ═══════════════════════════════════════════════════════
+// REMEMBER THIS MONTH
+// ═══════════════════════════════════════════════════════
+
+document.getElementById('rememberBtn').addEventListener('click', function () {
+  if (!currentResult) return;
+  const data = { date: new Date().toISOString(), total: currentResult.grandTotal, cats: {} };
+  for (const c of currentResult.categories) data.cats[c.name] = c.total;
+  try { localStorage.setItem('kharcha_last', JSON.stringify(data)); } catch (e) {}
+  const btn = this;
+  btn.textContent = '✓ saved for next month';
+  btn.disabled = true;
+  setTimeout(function () { btn.textContent = '📌 remember this month'; btn.disabled = false; }, 2000);
+});
+
+// ═══════════════════════════════════════════════════════
+// TIPS TOGGLE
+// ═══════════════════════════════════════════════════════
+
+document.getElementById('tipsToggle').addEventListener('click', function () {
+  const sec = document.getElementById('tipsSection');
+  const open = sec.classList.toggle('open');
+  this.textContent = open ? 'what\'s included in each category? ▴' : 'what\'s included in each category? ▾';
+});
+
+// ═══════════════════════════════════════════════════════
+// DRILL CLOSE
+// ═══════════════════════════════════════════════════════
+
+document.getElementById('drillClose').addEventListener('click', function () {
+  document.getElementById('drill').classList.remove('open');
+});
+
+// ═══════════════════════════════════════════════════════
+// CLEAR EVERYTHING
+// ═══════════════════════════════════════════════════════
+
+document.getElementById('clearBtn').addEventListener('click', function () {
+  currentFile = null;
+  currentResult = null;
+  amountsVisible = true;
+  fileInput.value = '';
+  pwdInput.value = '';
+  pwdSection.style.display = 'none';
+  resultsEl.style.display = 'none';
+  statusEl.style.display = 'none';
+  document.getElementById('shareGrid').innerHTML = '';
+  document.getElementById('shareTotal').textContent = '₹0';
+  document.getElementById('eyeToggle').textContent = '👁';
+  document.getElementById('drill').classList.remove('open');
+  document.getElementById('tipsSection').classList.remove('open');
+  document.getElementById('tipsToggle').textContent = 'what\'s included in each category? ▾';
+  dropzone.scrollIntoView({ behavior: 'smooth' });
+});
+
+// ═══════════════════════════════════════════════════════
+// STATUS HELPER
+// ═══════════════════════════════════════════════════════
+
+function showStatus(msg, isError) {
+  statusEl.textContent = msg;
+  statusEl.className = 'status' + (isError ? ' error' : '');
+  statusEl.style.display = 'block';
+  resultsEl.style.display = 'none';
+}
+</script>
+</body>
+</html>
